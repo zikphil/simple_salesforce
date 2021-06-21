@@ -13,58 +13,6 @@ PerAppUsage = namedtuple('PerAppUsage', 'used total name')
 
 class AsyncTransport(Transport):
 
-    def __init__(self, username=None, password=None, security_token=None, organizationId=None, version=None,
-                 client_id=None, domain=None, consumer_key=None, privatekey_file=None, privatekey=None):
-
-        self.session = aiohttp.ClientSession()
-        self.session_id = None
-        self.sf_instance = None
-        self._exp = 0
-        self.api_usage = {}
-        self.api_version = version
-
-        # Determine if the user wants to use our username/password auth or pass
-        # in their own information
-        if all(arg is not None for arg in (username, password, security_token)):
-            self.auth_type = "password"
-            self.auth_kwargs = {
-                'session': self.session,
-                'username': username,
-                'password': password,
-                'security_token': security_token,
-                'sf_version': version,
-                'client_id': client_id,
-                'domain': domain,
-            }
-
-        elif all(arg is not None for arg in (username, password, organizationId)):
-            self.auth_type = 'ipfilter'
-            self.auth_kwargs = {
-                'session': self.session,
-                'username': username,
-                'password': password,
-                'organizationId': organizationId,
-                'sf_version': version,
-                'client_id': client_id,
-                'domain': domain,
-            }
-
-        elif all(arg is not None for arg in (username, consumer_key, privatekey_file or privatekey)):
-            self.auth_type = "jwt-bearer"
-            self.auth_kwargs = {
-                'session': self.session,
-                'username': username,
-                'consumer_key': consumer_key,
-                'privatekey_file': privatekey_file,
-                'privatekey': privatekey,
-                'domain': domain,
-            }
-
-        else:
-            raise TypeError(
-                'You must provide login information or an instance and token'
-            )
-
     async def refresh_session(self):
         self.session_id, self.sf_instance = await AsyncSalesforceLogin(
             **self.auth_kwargs,
