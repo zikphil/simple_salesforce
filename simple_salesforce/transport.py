@@ -98,8 +98,7 @@ class Transport(object):
 
     def refresh_session(self):
         self.session_id, self.sf_instance = SalesforceLogin(
-            **self.auth_kwargs,
-            session=self.session
+            **self.auth_kwargs
         )
 
     @staticmethod
