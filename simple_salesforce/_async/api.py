@@ -10,11 +10,11 @@ import logging
 from collections import OrderedDict, namedtuple
 from urllib.parse import urljoin, urlparse
 
-from .bulk import SFBulkHandler
-from .exceptions import SalesforceGeneralError
-from .util import date_to_iso8601
+from .bulk import AsyncSFBulkHandler
+from ..exceptions import SalesforceGeneralError
+from ..util import date_to_iso8601
 from .metadata import SfdcMetadataApi
-from .transport import Transport
+from .transport import AsyncTransport
 
 # pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ PerAppUsage = namedtuple('PerAppUsage', 'used total name')
 
 
 # pylint: disable=too-many-instance-attributes
-class Salesforce(object):
+class AsyncSalesforce(object):
     """Salesforce Instance
 
     An instance of Salesforce is a handy way to wrap a Salesforce session
@@ -44,7 +44,7 @@ class Salesforce(object):
         consumer_key=None,
         privatekey_file=None,
         privatekey=None,
-        transport_class=Transport
+        transport_class=AsyncTransport
     ):
 
         """Initialize the instance with the given parameters.
@@ -117,14 +117,14 @@ class Salesforce(object):
             self._mdapi = SfdcMetadataApi(sandbox=sandbox, transport_instance=self.transport)
         return self._mdapi
 
-    def describe(self, **kwargs):
+    async def describe(self, **kwargs):
         """Describes all available objects
 
         Arguments:
 
         * keyword arguments supported by requests.request (e.g. json, timeout)
         """
-        result = self.transport.call(
+        result = await self.transport.call(
             'GET',
             endpoint="sobjects",
             name='describe',
@@ -137,11 +137,11 @@ class Salesforce(object):
 
         return json_result
 
-    def is_sandbox(self):
+    async def is_sandbox(self):
         """After connection returns is the organization is a sandbox"""
         is_sandbox = None
         if self.transport.session_id:
-            is_sandbox = self.query_all("SELECT IsSandbox FROM Organization LIMIT 1")
+            is_sandbox = await self.query_all("SELECT IsSandbox FROM Organization LIMIT 1")
             is_sandbox = is_sandbox.get('records', [{'IsSandbox': None}])[0].get('IsSandbox')
         return is_sandbox
 
@@ -167,12 +167,12 @@ class Salesforce(object):
 
         if name == 'bulk':
             # Deal with bulk API functions
-            return SFBulkHandler(self.transport)
+            return AsyncSFBulkHandler(self.transport)
 
-        return SFType(name, self.transport)
+        return AsyncSFType(name, self.transport)
 
     # User utility methods
-    def set_password(self, user, password):
+    async def set_password(self, user, password):
         """Sets the password of a user
 
         salesforce dev documentation link:
@@ -188,14 +188,14 @@ class Salesforce(object):
         endpoint = 'sobjects/User/%s/password' % user
         params = {'NewPassword': password}
 
-        result = self.transport.call(
+        result = await self.transport.call(
             'POST',
             endpoint=endpoint,
             data=json.dumps(params)
         )
 
         # salesforce return 204 No Content when the request is successful
-        if result.status_code != 200 and result.status_code != 204:
+        if result.status != 200 and result.status != 204:
             raise SalesforceGeneralError(endpoint, result.status_code, 'User', result.content)
 
         json_result = result.json(object_pairs_hook=OrderedDict)
@@ -206,7 +206,7 @@ class Salesforce(object):
         return json_result
 
     # Search Functions
-    def search(self, search):
+    async def search(self, search):
         """Returns the result of a Salesforce search as a dict decoded from
         the Salesforce response JSON payload.
 
@@ -220,7 +220,7 @@ class Salesforce(object):
         # `requests` will correctly encode the query string passed as `params`
         params = {'q': search}
 
-        result = self.transport.call(
+        result = await self.transport.call(
             'POST',
             endpoint=endpoint,
             params=params,
@@ -234,7 +234,7 @@ class Salesforce(object):
 
         return json_result
 
-    def quick_search(self, search):
+    async def quick_search(self, search):
         """Returns the result of a Salesforce search as a dict decoded from
         the Salesforce response JSON payload.
 
@@ -245,26 +245,26 @@ class Salesforce(object):
                     sent to Salesforce
         """
         search_string = 'FIND {{{search_string}}}'.format(search_string=search)
-        return self.search(search_string)
+        return await self.search(search_string)
 
-    def limits(self, **kwargs):
+    async def limits(self, **kwargs):
         """Return the result of a Salesforce request to list Organization
         limits.
         """
         endpoint = 'limits/'
-        result = self.transport.call(
+        result = await self.transport.call(
             'GET',
             endpoint=endpoint,
             **kwargs
         )
 
-        if result.status_code != 200:
+        if result.status != 200:
             self.transport.exception_handler(result)
 
         return result.json(object_pairs_hook=OrderedDict)
 
     # Query Handler
-    def query(self, query, include_deleted=False, **kwargs):
+    async def query(self, query, include_deleted=False, **kwargs):
         """Return the result of a Salesforce SOQL query as a dict decoded from
         the Salesforce response JSON payload.
 
@@ -278,7 +278,7 @@ class Salesforce(object):
         params = {'q': query}
 
         # `requests` will correctly encode the query string passed as `params`
-        result = self.transport.call(
+        result = await self.transport.call(
             'GET',
             endpoint=endpoint,
             name='query',
@@ -288,7 +288,7 @@ class Salesforce(object):
 
         return result.json(object_pairs_hook=OrderedDict)
 
-    def query_more(self, next_records_identifier, identifier_is_url=False, include_deleted=False, **kwargs):
+    async def query_more(self, next_records_identifier, identifier_is_url=False, include_deleted=False, **kwargs):
         """Retrieves more results from a query that returned more results
         than the batch maximum. Returns a dict decoded from the Salesforce
         response JSON payload.
@@ -312,16 +312,16 @@ class Salesforce(object):
                    .format(instance=self.transport.sf_instance,
                            next_record_url=next_records_identifier))
 
-            result = self.transport._api_call('GET', url, name='query_more', **kwargs)
+            result = await self.transport._api_call('GET', url, name='query_more', **kwargs)
 
         else:
             endpoint = '{}/{}'.format('queryAll' if include_deleted else 'query', next_records_identifier)
 
-            result = self.transport.call('GET', endpoint=endpoint, name='query_more', **kwargs)
+            result = await self.transport.call('GET', endpoint=endpoint, name='query_more', **kwargs)
 
         return result.json(object_pairs_hook=OrderedDict)
 
-    def query_all_iter(self, query, include_deleted=False, **kwargs):
+    async def query_all_iter(self, query, include_deleted=False, **kwargs):
         """This is a lazy alternative to `query_all` - it does not construct
         the whole result set into one container, but returns objects from each
         page it retrieves from the API.
@@ -341,18 +341,17 @@ class Salesforce(object):
         * include_deleted -- True if the query should include deleted records.
         """
 
-        result = self.query(query, include_deleted=include_deleted, **kwargs)
+        result = await self.query(query, include_deleted=include_deleted, **kwargs)
         while True:
             for record in result['records']:
                 yield record
             # fetch next batch if we're not done else break out of loop
             if not result['done']:
-                result = self.query_more(result['nextRecordsUrl'],
-                                         identifier_is_url=True)
+                result = await self.query_more(result['nextRecordsUrl'], identifier_is_url=True)
             else:
                 return
 
-    def query_all(self, query, include_deleted=False, **kwargs):
+    async def query_all(self, query, include_deleted=False, **kwargs):
         """Returns the full set of results for the `query`. This is a
         convenience
         wrapper around `query(...)` and `query_more(...)`.
@@ -369,16 +368,15 @@ class Salesforce(object):
         * include_deleted -- True if the query should include deleted records.
         """
 
-        records = self.query_all_iter(query, include_deleted=include_deleted,
-                                      **kwargs)
-        all_records = list(records)
+        records = self.query_all_iter(query, include_deleted=include_deleted, **kwargs)
+        all_records = [x async for x in records]
         return {
             'records': all_records,
             'totalSize': len(all_records),
             'done': True,
         }
 
-    def toolingexecute(self, action, method='GET', data=None, **kwargs):
+    async def toolingexecute(self, action, method='GET', data=None, **kwargs):
         """Makes an HTTP request to an TOOLING REST endpoint
 
         Arguments:
@@ -391,7 +389,7 @@ class Salesforce(object):
         # If data is None, we should send an empty body, not "null", which is
         # None in json.
         json_data = json.dumps(data) if data is not None else None
-        result = self.transport.call(
+        result = await self.transport.call(
             method,
             api='tooling',
             endpoint=action,
@@ -399,14 +397,14 @@ class Salesforce(object):
             data=json_data, **kwargs
         )
         try:
-            response_content = result.json()
+            response_content = await result.json()
         # pylint: disable=broad-except
         except Exception:
             response_content = result.text
 
         return response_content
 
-    def apexecute(self, action, method='GET', data=None, **kwargs):
+    async def apexecute(self, action, method='GET', data=None, **kwargs):
         """Makes an HTTP request to an APEX REST endpoint
 
         Arguments:
@@ -419,7 +417,7 @@ class Salesforce(object):
         # If data is None, we should send an empty body, not "null", which is
         # None in json.
         json_data = json.dumps(data) if data is not None else None
-        result = self.transport.call(
+        result = await self.transport.call(
             method,
             api='apex',
             endpoint=action,
@@ -427,7 +425,7 @@ class Salesforce(object):
             data=json_data, **kwargs
         )
         try:
-            response_content = result.json()
+            response_content = await result.json()
         # pylint: disable=broad-except
         except Exception:
             response_content = result.text
@@ -478,7 +476,7 @@ class Salesforce(object):
         return results
 
 
-class SFType(object):
+class AsyncSFType(object):
     """An interface to a specific type of SObject"""
 
     # pylint: disable=too-many-arguments
@@ -500,7 +498,7 @@ class SFType(object):
 
         self.base_endpoint = 'sobjects/{object_name}/'.format(object_name=object_name)
 
-    def metadata(self, headers=None):
+    async def metadata(self, headers=None):
         """Returns the result of a GET to `.../{object_name}/` as a dict
         decoded from the JSON payload returned by Salesforce.
 
@@ -508,14 +506,14 @@ class SFType(object):
 
         * headers -- a dict with additional request headers.
         """
-        result = self.transport.call(
+        result = await self.transport.call(
             'GET',
             endpoint=self.base_endpoint,
             headers=headers
         )
-        return result.json(object_pairs_hook=OrderedDict)
+        return await result.json(object_pairs_hook=OrderedDict)
 
-    def describe(self, headers=None):
+    async def describe(self, headers=None):
         """Returns the result of a GET to `.../{object_name}/describe` as a
         dict decoded from the JSON payload returned by Salesforce.
 
@@ -523,14 +521,14 @@ class SFType(object):
 
         * headers -- a dict with additional request headers.
         """
-        result = self.transport.call(
+        result = await self.transport.call(
             method='GET',
             endpoint=urljoin(self.base_endpoint, 'describe'),
             headers=headers
         )
-        return result.json(object_pairs_hook=OrderedDict)
+        return await result.json(object_pairs_hook=OrderedDict)
 
-    def describe_layout(self, record_id, headers=None):
+    async def describe_layout(self, record_id, headers=None):
         """Returns the layout of the object
 
         Returns the result of a GET to
@@ -545,14 +543,14 @@ class SFType(object):
         custom_url_part = 'describe/layouts/{record_id}'.format(
             record_id=record_id
         )
-        result = self.transport.call(
+        result = await self.transport.call(
             method='GET',
             endpoint=urljoin(self.base_endpoint, custom_url_part),
             headers=headers
         )
-        return result.json(object_pairs_hook=OrderedDict)
+        return await result.json(object_pairs_hook=OrderedDict)
 
-    def get(self, record_id, headers=None):
+    async def get(self, record_id, headers=None):
         """Returns the result of a GET to `.../{object_name}/{record_id}` as a
         dict decoded from the JSON payload returned by Salesforce.
 
@@ -561,14 +559,14 @@ class SFType(object):
         * record_id -- the Id of the SObject to get
         * headers -- a dict with additional request headers.
         """
-        result = self.transport.call(
+        result = await self.transport.call(
             method='GET',
             endpoint=urljoin(self.base_endpoint, record_id),
             headers=headers
         )
-        return result.json(object_pairs_hook=OrderedDict)
+        return await result.json(object_pairs_hook=OrderedDict)
 
-    def get_by_custom_id(self, custom_id_field, custom_id, headers=None):
+    async def get_by_custom_id(self, custom_id_field, custom_id, headers=None):
         """Return an ``SFType`` by custom ID
 
         Returns the result of a GET to
@@ -587,14 +585,14 @@ class SFType(object):
                 custom_id_field=custom_id_field, custom_id=custom_id
             )
         )
-        result = self.transport.call(
+        result = await self.transport.call(
             method='GET',
             endpoint=custom_url,
             headers=headers
         )
-        return result.json(object_pairs_hook=OrderedDict)
+        return await result.json(object_pairs_hook=OrderedDict)
 
-    def create(self, data, headers=None):
+    async def create(self, data, headers=None):
         """Creates a new SObject using a POST to `.../{object_name}/`.
 
         Returns a dict decoded from the JSON payload returned by Salesforce.
@@ -605,15 +603,15 @@ class SFType(object):
                   JSON-encoded before being transmitted.
         * headers -- a dict with additional request headers.
         """
-        result = self.transport.call(
+        result = await self.transport.call(
             method='POST',
             endpoint=self.base_endpoint,
             data=json.dumps(data),
             headers=headers
         )
-        return result.json(object_pairs_hook=OrderedDict)
+        return await result.json(object_pairs_hook=OrderedDict)
 
-    def upsert(self, record_id, data, raw_response=False, headers=None):
+    async def upsert(self, record_id, data, raw_response=False, headers=None):
         """Creates or updates an SObject using a PATCH to
         `.../{object_name}/{record_id}`.
 
@@ -631,7 +629,7 @@ class SFType(object):
                           directly, instead of the status code.
         * headers -- a dict with additional request headers.
         """
-        result = self.transport.call(
+        result = await self.transport.call(
             method='PATCH',
             endpoint=urljoin(self.base_endpoint, record_id),
             data=json.dumps(data),
@@ -639,7 +637,7 @@ class SFType(object):
         )
         return self._raw_response(result, raw_response)
 
-    def update(self, record_id, data, raw_response=False, headers=None):
+    async def update(self, record_id, data, raw_response=False, headers=None):
         """Updates an SObject using a PATCH to
         `.../{object_name}/{record_id}`.
 
@@ -656,7 +654,7 @@ class SFType(object):
                           directly, instead of the status code.
         * headers -- a dict with additional request headers.
         """
-        result = self.transport.call(
+        result = await self.transport.call(
             method='PATCH',
             endpoint=urljoin(self.base_endpoint, record_id),
             data=json.dumps(data),
@@ -664,7 +662,7 @@ class SFType(object):
         )
         return self._raw_response(result, raw_response)
 
-    def delete(self, record_id, raw_response=False, headers=None):
+    async def delete(self, record_id, raw_response=False, headers=None):
         """Deletes an SObject using a DELETE to
         `.../{object_name}/{record_id}`.
 
@@ -679,14 +677,14 @@ class SFType(object):
                           directly, instead of the status code.
         * headers -- a dict with additional request headers.
         """
-        result = self.transport.call(
+        result = await self.transport.call(
             method='DELETE',
             endpoint=urljoin(self.base_endpoint, record_id),
             headers=headers
         )
         return self._raw_response(result, raw_response)
 
-    def deleted(self, start, end, headers=None):
+    async def deleted(self, start, end, headers=None):
         # pylint: disable=line-too-long
         """Gets a list of deleted records
 
@@ -704,10 +702,10 @@ class SFType(object):
                 start=date_to_iso8601(start), end=date_to_iso8601(end)
             )
         )
-        result = self.transport.call(method='GET', endpoint=url, headers=headers)
-        return result.json(object_pairs_hook=OrderedDict)
+        result = await self.transport.call(method='GET', endpoint=url, headers=headers)
+        return await result.json(object_pairs_hook=OrderedDict)
 
-    def updated(self, start, end, headers=None):
+    async def updated(self, start, end, headers=None):
         # pylint: disable=line-too-long
         """Gets a list of updated records
 
@@ -726,8 +724,8 @@ class SFType(object):
                 start=date_to_iso8601(start), end=date_to_iso8601(end)
             )
         )
-        result = self.transport.call(method='GET', endpoint=url, headers=headers)
-        return result.json(object_pairs_hook=OrderedDict)
+        result = await self.transport.call(method='GET', endpoint=url, headers=headers)
+        return await result.json(object_pairs_hook=OrderedDict)
 
     # pylint: disable=no-self-use
     def _raw_response(self, response, body_flag):
@@ -737,15 +735,15 @@ class SFType(object):
         Returns either an `int` or a `requests.Response` object.
         """
         if not body_flag:
-            return response.status_code
+            return response.status
 
         return response
 
-    def upload_base64(self, file_path, base64_field='Body', data={}, headers=None, **kwargs):
+    async def upload_base64(self, file_path, base64_field='Body', data={}, headers=None, **kwargs):
         with open(file_path, "rb") as f:
             body = base64.b64encode(f.read()).decode('utf-8')
         data[base64_field] = body
-        result = self.transport.call(
+        result = await self.transport.call(
             method='POST',
             endpoint=self.base_endpoint,
             headers=headers,
@@ -755,12 +753,12 @@ class SFType(object):
 
         return result
 
-    def update_base64(self, record_id, file_path, base64_field='Body', data={}, headers=None, raw_response=False,
+    async def update_base64(self, record_id, file_path, base64_field='Body', data={}, headers=None, raw_response=False,
                       **kwargs):
         with open(file_path, "rb") as f:
             body = base64.b64encode(f.read()).decode('utf-8')
         data[base64_field] = body
-        result = self.transport.call(
+        result = await self.transport.call(
             method='PATCH',
             endpoint=urljoin(self.base_endpoint, record_id),
             json=data,
@@ -770,14 +768,14 @@ class SFType(object):
 
         return self._raw_response(result, raw_response)
 
-    def get_base64(self, record_id, base64_field='Body', data=None, headers=None, **kwargs):
+    async def get_base64(self, record_id, base64_field='Body', data=None, headers=None, **kwargs):
         """Returns binary stream of base64 object at specific path.
         Arguments:
         * path: The path of the request
             Example: sobjects/Attachment/ABC123/Body
                      sobjects/ContentVersion/ABC123/VersionData
         """
-        result = self.transport.call(
+        result = await self.transport.call(
             method='GET',
             endpoint=urljoin(self.base_endpoint, f"{record_id}/{base64_field}"),
             data=data,

@@ -98,7 +98,8 @@ class Transport(object):
 
     def refresh_session(self):
         self.session_id, self.sf_instance = SalesforceLogin(
-            **self.auth_kwargs
+            **self.auth_kwargs,
+            session=self.session
         )
 
     @staticmethod
@@ -152,7 +153,10 @@ class Transport(object):
                 self.exception_handler(result)
         except SalesforceExpiredSession as e:
             self.refresh_session()
-            return self._api_call(method, url, **kwargs)
+            result = self.session.request(method, url, headers=headers, **kwargs)
+
+            if result.status_code >= 300:
+                self.exception_handler(result)
 
         sforce_limit_info = result.headers.get('Sforce-Limit-Info')
         if sforce_limit_info:
