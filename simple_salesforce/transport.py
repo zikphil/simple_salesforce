@@ -94,7 +94,9 @@ class Transport(object):
             )
 
         # We get the initial SFDC Session
-        self.refresh_session()
+        self.session_id, self.sf_instance = SalesforceLogin(
+            **self.auth_kwargs
+        )
 
     def refresh_session(self):
         self.session_id, self.sf_instance = SalesforceLogin(
