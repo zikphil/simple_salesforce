@@ -749,7 +749,7 @@ class AsyncSFType(object):
         return result
 
     async def update_base64(self, record_id, file_path, base64_field='Body', data={}, headers=None, raw_response=False,
-                      **kwargs):
+                            **kwargs):
         with open(file_path, "rb") as f:
             body = base64.b64encode(f.read()).decode('utf-8')
         data[base64_field] = body

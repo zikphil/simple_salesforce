@@ -40,13 +40,13 @@ class AsyncTransport(Transport):
 
         try:
             if result.status >= 300:
-                self.exception_handler(result)
+                await self.exception_handler(result)
         except SalesforceExpiredSession as e:
             await self.refresh_session()
             result = await self.session.request(method, url, headers=headers, **kwargs)
 
             if result.status >= 300:
-                self.exception_handler(result)
+                await self.exception_handler(result)
 
         sforce_limit_info = result.headers.get('Sforce-Limit-Info')
         if sforce_limit_info:
@@ -54,10 +54,10 @@ class AsyncTransport(Transport):
 
         return result
 
-    def exception_handler(self, result, name=""):
+    async def exception_handler(self, result, name=""):
         """Exception router. Determines which error to raise for bad results"""
         try:
-            response_content = result.json()
+            response_content = await result.json()
         # pylint: disable=broad-except
         except Exception:
             response_content = result.text
