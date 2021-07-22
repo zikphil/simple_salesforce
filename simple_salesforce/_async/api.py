@@ -130,7 +130,7 @@ class AsyncSalesforce(object):
             **kwargs
         )
 
-        json_result = result.json()
+        json_result = await result.json()
         if len(json_result) == 0:
             return None
 
@@ -197,7 +197,7 @@ class AsyncSalesforce(object):
         if result.status != 200 and result.status != 204:
             raise SalesforceGeneralError(endpoint, result.status_code, 'User', result.content)
 
-        json_result = result.json()
+        json_result = await result.json()
 
         if len(json_result) == 0:
             return None
@@ -225,7 +225,7 @@ class AsyncSalesforce(object):
             params=params
         )
 
-        json_result = result.json()
+        json_result = await result.json()
 
         if len(json_result) == 0:
             return None
@@ -259,7 +259,7 @@ class AsyncSalesforce(object):
         if result.status != 200:
             self.transport.exception_handler(result)
 
-        return result.json()
+        return await result.json()
 
     # Query Handler
     async def query(self, query, include_deleted=False, **kwargs):
@@ -283,7 +283,7 @@ class AsyncSalesforce(object):
             **kwargs
         )
 
-        return result.json()
+        return await result.json()
 
     async def query_more(self, next_records_identifier, identifier_is_url=False, include_deleted=False, **kwargs):
         """Retrieves more results from a query that returned more results
@@ -316,7 +316,7 @@ class AsyncSalesforce(object):
 
             result = await self.transport.call('GET', endpoint=endpoint, **kwargs)
 
-        return result.json()
+        return await result.json()
 
     async def query_all_iter(self, query, include_deleted=False, **kwargs):
         """This is a lazy alternative to `query_all` - it does not construct
