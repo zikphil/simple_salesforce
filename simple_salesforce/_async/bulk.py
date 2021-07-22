@@ -75,7 +75,7 @@ class AsyncSFBulkType(object):
             api='bulk',
             data=json.dumps(payload, allow_nan=False)
         )
-        return await result.json(object_pairs_hook=OrderedDict)
+        return await result.json()
 
     async def _close_job(self, job_id):
         """ Close a bulk job """
@@ -92,7 +92,7 @@ class AsyncSFBulkType(object):
             data=json.dumps(payload, allow_nan=False)
         )
 
-        return await result.json(object_pairs_hook=OrderedDict)
+        return await result.json()
 
     async def _get_job(self, job_id):
         """ Get an existing job to check the status """
@@ -103,7 +103,7 @@ class AsyncSFBulkType(object):
             endpoint=endpoint,
             api='bulk'
         )
-        return await result.json(object_pairs_hook=OrderedDict)
+        return await result.json()
 
     async def _add_batch(self, job_id, data, operation):
         """ Add a set of data as a batch to an existing job
@@ -122,7 +122,7 @@ class AsyncSFBulkType(object):
             api='bulk',
             data=data
         )
-        return await result.json(object_pairs_hook=OrderedDict)
+        return await result.json()
 
     async def _get_batch(self, job_id, batch_id):
         """ Get an existing batch to check the status """
@@ -134,7 +134,7 @@ class AsyncSFBulkType(object):
             endpoint=endpoint,
             api='bulk'
         )
-        return await result.json(object_pairs_hook=OrderedDict)
+        return await result.json()
 
     async def _get_batch_results(self, job_id, batch_id, operation):
         """ retrieve a set of results from a completed job """

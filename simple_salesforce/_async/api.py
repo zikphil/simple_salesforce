@@ -130,7 +130,7 @@ class AsyncSalesforce(object):
             **kwargs
         )
 
-        json_result = result.json(object_pairs_hook=OrderedDict)
+        json_result = result.json()
         if len(json_result) == 0:
             return None
 
@@ -197,7 +197,7 @@ class AsyncSalesforce(object):
         if result.status != 200 and result.status != 204:
             raise SalesforceGeneralError(endpoint, result.status_code, 'User', result.content)
 
-        json_result = result.json(object_pairs_hook=OrderedDict)
+        json_result = result.json()
 
         if len(json_result) == 0:
             return None
@@ -225,7 +225,7 @@ class AsyncSalesforce(object):
             params=params
         )
 
-        json_result = result.json(object_pairs_hook=OrderedDict)
+        json_result = result.json()
 
         if len(json_result) == 0:
             return None
@@ -259,7 +259,7 @@ class AsyncSalesforce(object):
         if result.status != 200:
             self.transport.exception_handler(result)
 
-        return result.json(object_pairs_hook=OrderedDict)
+        return result.json()
 
     # Query Handler
     async def query(self, query, include_deleted=False, **kwargs):
@@ -283,7 +283,7 @@ class AsyncSalesforce(object):
             **kwargs
         )
 
-        return result.json(object_pairs_hook=OrderedDict)
+        return result.json()
 
     async def query_more(self, next_records_identifier, identifier_is_url=False, include_deleted=False, **kwargs):
         """Retrieves more results from a query that returned more results
@@ -316,7 +316,7 @@ class AsyncSalesforce(object):
 
             result = await self.transport.call('GET', endpoint=endpoint, **kwargs)
 
-        return result.json(object_pairs_hook=OrderedDict)
+        return result.json()
 
     async def query_all_iter(self, query, include_deleted=False, **kwargs):
         """This is a lazy alternative to `query_all` - it does not construct
@@ -506,7 +506,7 @@ class AsyncSFType(object):
             endpoint=self.base_endpoint,
             headers=headers
         )
-        return await result.json(object_pairs_hook=OrderedDict)
+        return await result.json()
 
     async def describe(self, headers=None):
         """Returns the result of a GET to `.../{object_name}/describe` as a
@@ -521,7 +521,7 @@ class AsyncSFType(object):
             endpoint=urljoin(self.base_endpoint, 'describe'),
             headers=headers
         )
-        return await result.json(object_pairs_hook=OrderedDict)
+        return await result.json()
 
     async def describe_layout(self, record_id, headers=None):
         """Returns the layout of the object
@@ -543,7 +543,7 @@ class AsyncSFType(object):
             endpoint=urljoin(self.base_endpoint, custom_url_part),
             headers=headers
         )
-        return await result.json(object_pairs_hook=OrderedDict)
+        return await result.json()
 
     async def get(self, record_id, headers=None):
         """Returns the result of a GET to `.../{object_name}/{record_id}` as a
@@ -559,7 +559,7 @@ class AsyncSFType(object):
             endpoint=urljoin(self.base_endpoint, record_id),
             headers=headers
         )
-        return await result.json(object_pairs_hook=OrderedDict)
+        return await result.json()
 
     async def get_by_custom_id(self, custom_id_field, custom_id, headers=None):
         """Return an ``SFType`` by custom ID
@@ -585,7 +585,7 @@ class AsyncSFType(object):
             endpoint=custom_url,
             headers=headers
         )
-        return await result.json(object_pairs_hook=OrderedDict)
+        return await result.json()
 
     async def create(self, data, headers=None):
         """Creates a new SObject using a POST to `.../{object_name}/`.
@@ -604,7 +604,7 @@ class AsyncSFType(object):
             data=json.dumps(data),
             headers=headers
         )
-        return await result.json(object_pairs_hook=OrderedDict)
+        return await result.json()
 
     async def upsert(self, record_id, data, raw_response=False, headers=None):
         """Creates or updates an SObject using a PATCH to
@@ -698,7 +698,7 @@ class AsyncSFType(object):
             )
         )
         result = await self.transport.call(method='GET', endpoint=url, headers=headers)
-        return await result.json(object_pairs_hook=OrderedDict)
+        return await result.json()
 
     async def updated(self, start, end, headers=None):
         # pylint: disable=line-too-long
@@ -720,7 +720,7 @@ class AsyncSFType(object):
             )
         )
         result = await self.transport.call(method='GET', endpoint=url, headers=headers)
-        return await result.json(object_pairs_hook=OrderedDict)
+        return await result.json()
 
     # pylint: disable=no-self-use
     def _raw_response(self, response, body_flag):

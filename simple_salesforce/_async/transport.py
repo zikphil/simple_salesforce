@@ -13,6 +13,10 @@ PerAppUsage = namedtuple('PerAppUsage', 'used total name')
 
 class AsyncTransport(Transport):
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.session = aiohttp.ClientSession()
+
     async def refresh_session(self):
         self.session_id, self.sf_instance = await AsyncSalesforceLogin(
             **self.auth_kwargs
