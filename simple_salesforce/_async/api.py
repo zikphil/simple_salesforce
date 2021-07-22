@@ -127,7 +127,6 @@ class AsyncSalesforce(object):
         result = await self.transport.call(
             'GET',
             endpoint="sobjects",
-            name='describe',
             **kwargs
         )
 
@@ -223,8 +222,7 @@ class AsyncSalesforce(object):
         result = await self.transport.call(
             'POST',
             endpoint=endpoint,
-            params=params,
-            name='search'
+            params=params
         )
 
         json_result = result.json(object_pairs_hook=OrderedDict)
@@ -281,7 +279,6 @@ class AsyncSalesforce(object):
         result = await self.transport.call(
             'GET',
             endpoint=endpoint,
-            name='query',
             params=params,
             **kwargs
         )
@@ -312,12 +309,12 @@ class AsyncSalesforce(object):
                    .format(instance=self.transport.sf_instance,
                            next_record_url=next_records_identifier))
 
-            result = await self.transport._api_call('GET', url, name='query_more', **kwargs)
+            result = await self.transport._api_call('GET', url,  **kwargs)
 
         else:
             endpoint = '{}/{}'.format('queryAll' if include_deleted else 'query', next_records_identifier)
 
-            result = await self.transport.call('GET', endpoint=endpoint, name='query_more', **kwargs)
+            result = await self.transport.call('GET', endpoint=endpoint, **kwargs)
 
         return result.json(object_pairs_hook=OrderedDict)
 
@@ -393,7 +390,6 @@ class AsyncSalesforce(object):
             method,
             api='tooling',
             endpoint=action,
-            name="toolingexecute",
             data=json_data, **kwargs
         )
         try:
@@ -421,7 +417,6 @@ class AsyncSalesforce(object):
             method,
             api='apex',
             endpoint=action,
-            name="apexecute",
             data=json_data, **kwargs
         )
         try:

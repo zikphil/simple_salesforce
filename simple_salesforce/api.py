@@ -127,7 +127,6 @@ class Salesforce(object):
         result = self.transport.call(
             'GET',
             endpoint="sobjects",
-            name='describe',
             **kwargs
         )
 
