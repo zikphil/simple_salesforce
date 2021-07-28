@@ -5,6 +5,7 @@ from .login import SalesforceLogin
 from .exceptions import SalesforceGeneralError, SalesforceError, SalesforceRefusedRequest, SalesforceResourceNotFound, \
     SalesforceExpiredSession, SalesforceMalformedRequest, SalesforceMoreThanOneRecord, SalesforceAuthenticationFailed
 from collections import namedtuple
+from requests.adapters import HTTPAdapter
 
 
 Usage = namedtuple('Usage', 'used total')
@@ -44,7 +45,11 @@ class Transport(object):
     def __init__(self, username=None, password=None, security_token=None, organizationId=None, version=None,
                  client_id=None, domain=None, consumer_key=None, privatekey_file=None, privatekey=None):
 
+        adapter = HTTPAdapter(max_retries=5)
         self.session = requests.Session()
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
+
         self.session_id = None
         self.sf_instance = None
         self._exp = 0
