@@ -19,7 +19,8 @@ class AsyncTransport(Transport):
 
     async def refresh_session(self):
         self.session_id, self.sf_instance = await AsyncSalesforceLogin(
-            **self.auth_kwargs
+            **self.auth_kwargs,
+            session=self.session
         )
 
     async def call(self, method, endpoint, api='base', **kwargs):
