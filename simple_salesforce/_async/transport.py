@@ -18,6 +18,7 @@ class AsyncTransport(Transport):
         self.session = aiohttp.ClientSession()
 
     async def refresh_session(self):
+        del self.auth_kwargs['session']
         self.session_id, self.sf_instance = await AsyncSalesforceLogin(
             **self.auth_kwargs,
             session=self.session
