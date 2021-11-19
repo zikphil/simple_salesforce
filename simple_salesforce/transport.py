@@ -1,6 +1,7 @@
 import requests
 import re
 
+from datetime import datetime, timedelta
 from .login import SalesforceLogin
 from .exceptions import SalesforceGeneralError, SalesforceError, SalesforceRefusedRequest, SalesforceResourceNotFound, \
     SalesforceExpiredSession, SalesforceMalformedRequest, SalesforceMoreThanOneRecord, SalesforceAuthenticationFailed
@@ -52,7 +53,7 @@ class Transport(object):
 
         self.session_id = None
         self.sf_instance = None
-        self._exp = 0
+        self.exp = datetime.utcnow()
         self.api_usage = {}
         self.api_version = version
 
@@ -98,15 +99,13 @@ class Transport(object):
                 'You must provide login information or an instance and token'
             )
 
-        # We get the initial SFDC Session
-        self.session_id, self.sf_instance = SalesforceLogin(
-            **self.auth_kwargs
-        )
+        self.refresh_session()
 
     def refresh_session(self):
-        self.session_id, self.sf_instance = SalesforceLogin(
+        self.session_id, self.sf_instance, session_duration = SalesforceLogin(
             **self.auth_kwargs
         )
+        self.exp = datetime.utcnow() + timedelta(seconds=session_duration)
 
     @staticmethod
     def parse_api_usage(sforce_limit_info):
@@ -149,6 +148,11 @@ class Transport(object):
         return self._api_call(method, url, **kwargs)
 
     def _api_call(self, method, url, **kwargs):
+
+        # Making sure the session has not expired
+        if datetime.utcnow() >= self.exp:
+            self.refresh_session()
+
         headers = self.headers.copy()
         additional_headers = kwargs.pop('headers', dict())
         headers.update(additional_headers or dict())

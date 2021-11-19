@@ -7,7 +7,9 @@ DEFAULT_CLIENT_ID_PREFIX = 'RestForce'
 
 
 import time
+import xml
 import warnings
+import xmltodict
 from datetime import datetime, timedelta
 from html import escape
 from json.decoder import JSONDecodeError
@@ -215,10 +217,12 @@ def soap_login(soap_url, request_body, headers, proxies, session=None):
             response.content, 'sf:exceptionMessage')
         raise SalesforceAuthenticationFailed(except_code, except_msg)
 
-    session_id = getUniqueElementValueFromXmlString(
-        response.content, 'sessionId')
-    server_url = getUniqueElementValueFromXmlString(
-        response.content, 'serverUrl')
+    parsed_content = xmltodict.parse(response.content)
+    content = parsed_content['soapenv:Envelope']['soapenv:Body']['loginResponse']['result']
+
+    session_id = content['sessionId']
+    server_url = content['serverUrl']
+    session_duration = content['userInfo']['sessionSecondsValid']
 
     sf_instance = (server_url
                    .replace('http://', '')
@@ -226,7 +230,7 @@ def soap_login(soap_url, request_body, headers, proxies, session=None):
                    .split('/')[0]
                    .replace('-api', ''))
 
-    return session_id, sf_instance
+    return session_id, sf_instance, int(session_duration)
 
 
 def token_login(token_url, token_data, domain, consumer_key,

@@ -40,6 +40,7 @@ setup(
         'authlib',
         'zeep',
         'aiohttp',
+        'xmltodict>=0.12.0'
     ],
     tests_require=[
         'nose>=1.3.0',

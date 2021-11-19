@@ -13,6 +13,7 @@ from html import escape
 from json.decoder import JSONDecodeError
 
 import aiohttp
+import xmltodict
 from authlib.jose import jwt
 
 from .api import DEFAULT_API_VERSION
@@ -204,7 +205,7 @@ async def AsyncSalesforceLogin(
 
 async def async_soap_login(soap_url, request_body, headers, session=None):
     """Process SOAP specific login workflow."""
-    response = await session.post(soap_url, request_body, headers=headers)
+    response = await session.post(soap_url, data=request_body, headers=headers)
 
     if response.status != 200:
         except_code = getUniqueElementValueFromXmlString(
@@ -213,10 +214,12 @@ async def async_soap_login(soap_url, request_body, headers, session=None):
             response.content, 'sf:exceptionMessage')
         raise SalesforceAuthenticationFailed(except_code, except_msg)
 
-    session_id = getUniqueElementValueFromXmlString(
-        response.content, 'sessionId')
-    server_url = getUniqueElementValueFromXmlString(
-        response.content, 'serverUrl')
+    parsed_content = xmltodict.parse(await response.text())
+    content = parsed_content['soapenv:Envelope']['soapenv:Body']['loginResponse']['result']
+
+    session_id = content['sessionId']
+    server_url = content['serverUrl']
+    session_duration = content['userInfo']['sessionSecondsValid']
 
     sf_instance = (server_url
                    .replace('http://', '')
@@ -224,7 +227,7 @@ async def async_soap_login(soap_url, request_body, headers, session=None):
                    .split('/')[0]
                    .replace('-api', ''))
 
-    return session_id, sf_instance
+    return session_id, sf_instance, int(session_duration)
 
 
 async def async_token_login(token_url, token_data, domain, consumer_key, headers, session=None):

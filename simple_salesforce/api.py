@@ -43,8 +43,7 @@ class Salesforce(object):
         domain=None,
         consumer_key=None,
         privatekey_file=None,
-        privatekey=None,
-        transport_class=Transport
+        privatekey=None
     ):
 
         """Initialize the instance with the given parameters.
@@ -96,7 +95,7 @@ class Salesforce(object):
         if domain is None:
             domain = 'login'
 
-        self.transport = transport_class(
+        self.transport = Transport(
             username=username,
             password=password,
             security_token=security_token,
